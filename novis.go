@@ -86,6 +86,7 @@ func New(port uint16, opts *ProxyOptions) *Novis {
 		Addr: fmt.Sprintf(":%d", port)}, opts: opts, storage: redis.NewClient(opts.StorageOpts)}
 	n.server.Handler = http.HandlerFunc(n.proxyRequest)
 	n.LoadFromStorage()
+	n.UpdateStorage()
 	return n
 }
 
@@ -126,6 +127,7 @@ func NewFromConfig(fileName string, storageOpts *redis.Options) (nn *Novis, err 
 		storage: redis.NewClient(storageOpts)}
 	nn.server.Handler = http.HandlerFunc(nn.proxyRequest)
 	err = nn.LoadFromStorage()
+	nn.UpdateStorage()
 	return nn, err
 }
 
@@ -185,8 +187,8 @@ func (n *Novis) healthCheck() {
 	}
 }
 
-// addToStorage - Add to redis store
-func (n *Novis) updateStorage() (err error) {
+// UpdateStorage - update to redis store
+func (n *Novis) UpdateStorage() (err error) {
 	ctx := context.Background()
 	svcJSON, err := json.Marshal(n.services)
 	if err != nil {
