@@ -319,7 +319,7 @@ func (n *Novis) proxyRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 // GetAllServices - Get all available services
-func (n *Novis) getAllServices(res http.ResponseWriter, req *http.Request) error {
+func (n *Novis) GetAllServices(res http.ResponseWriter, req *http.Request) error {
 	if strings.ToLower(req.Method) != "get" {
 		Respond(res, http.StatusMethodNotAllowed, nil, nil)
 		return errors.New("Get All Service request method not allowed")
