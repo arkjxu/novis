@@ -131,8 +131,7 @@ func NewFromConfig(fileName string, storageOpts *redis.Options) (nn *Novis, err 
 
 // LoadFromStorage - Load services from Storage
 func (n *Novis) LoadFromStorage() (err error) {
-	ctx, cnl := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cnl()
+	ctx := context.Background()
 	res, err := n.storage.Get(ctx, svcKey).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -188,8 +187,7 @@ func (n *Novis) healthCheck() {
 
 // addToStorage - Add to redis store
 func (n *Novis) updateStorage() (err error) {
-	ctx, cnl := context.WithTimeout(context.Background(), n.opts.Timeout)
-	defer cnl()
+	ctx := context.Background()
 	svcJSON, err := json.Marshal(n.services)
 	if err != nil {
 		return err
