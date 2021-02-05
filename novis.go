@@ -63,6 +63,7 @@ type ProxyOptions struct {
 	StorageOpts  *redis.Options
 }
 
+// Configuration - Configuration
 type Configuration struct {
 	Port   int16 `yaml:"port"`
 	Server struct {
@@ -84,6 +85,7 @@ func New(port uint16, opts *ProxyOptions) *Novis {
 	n := &Novis{services: map[string]*Service{}, server: &http.Server{
 		Addr: fmt.Sprintf(":%d", port)}, opts: opts, storage: redis.NewClient(opts.StorageOpts)}
 	n.server.Handler = http.HandlerFunc(n.proxyRequest)
+	n.LoadFromStorage()
 	return n
 }
 
@@ -99,6 +101,20 @@ func NewFromConfig(fileName string, storageOpts *redis.Options) (nn *Novis, err 
 		return nn, err
 	}
 	initialServices := map[string]*Service{}
+	for si := 0; si < len(yc.Server.Services); si++ {
+		sURL, err := url.Parse(yc.Server.Services[si].GetHost())
+		if err != nil {
+			return nn, err
+		}
+		proxy := httputil.NewSingleHostReverseProxy(sURL)
+		p := strings.Trim(yc.Server.Services[si].Path, "/")
+		initialServices[p] = &Service{
+			Host:           yc.Server.Services[si].GetHost(),
+			Path:           yc.Server.Services[si].GetPath(),
+			HealthCheckURL: yc.Server.Services[si].GetHealthCheckURL(),
+			reverseProxy:   proxy,
+			Status:         CHECKING}
+	}
 	nn = &Novis{
 		services: initialServices,
 		server: &http.Server{
@@ -108,7 +124,27 @@ func NewFromConfig(fileName string, storageOpts *redis.Options) (nn *Novis, err 
 			DiscoveryURL: yc.Server.Discovery.Path,
 			StorageOpts:  storageOpts}}
 	nn.server.Handler = http.HandlerFunc(nn.proxyRequest)
+	err = nn.LoadFromStorage()
 	return nn, err
+}
+
+// LoadFromStorage - Load services from Storage
+func (n *Novis) LoadFromStorage() (err error) {
+	ctx, cnl := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cnl()
+	res, err := n.storage.Get(ctx, svcKey).Result()
+	if err != nil {
+		return err
+	}
+	var services []Service
+	err = json.Unmarshal([]byte(res), &services)
+	if err != nil {
+		return err
+	}
+	for si := 0; si < len(services); si++ {
+		n.AddService(&services[si])
+	}
+	return err
 }
 
 // Start - Start Server Proxy
@@ -154,7 +190,7 @@ func (n *Novis) updateStorage() (err error) {
 	if err != nil {
 		return err
 	}
-	err = n.storage.Set(ctx, svcKey, svcJSON, 0).Err()
+	err = n.storage.Set(ctx, svcKey, string(svcJSON), 0).Err()
 	return err
 }
 
@@ -368,6 +404,10 @@ func (s *Service) GetHealthCheckURL() (hcu string) {
 // Close - Close down server
 func (n *Novis) Close() (err error) {
 	err = n.server.Close()
+	if err != nil {
+		return err
+	}
+	err = n.storage.Close()
 	return err
 }
 
