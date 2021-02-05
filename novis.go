@@ -44,7 +44,7 @@ type Service struct {
 	Status         ServiceStatus `json:"status"`
 	HealthCheckURL string        `json:"healthCheckURL" yaml:"healthCheckURL"`
 	reverseProxy   *httputil.ReverseProxy
-	mux            sync.RWMutex
+	mux            *sync.RWMutex
 }
 
 // Novis - Service Proxy
@@ -141,13 +141,24 @@ func (n *Novis) LoadFromStorage() (err error) {
 		}
 		return err
 	}
-	var services []Service
+	var services map[string]Service
 	err = json.Unmarshal([]byte(res), &services)
 	if err != nil {
 		return err
 	}
-	for si := 0; si < len(services); si++ {
-		n.AddService(&services[si])
+	for _, v := range services {
+		sURL, err := url.Parse(v.GetHost())
+		if err != nil {
+			return err
+		}
+		proxy := httputil.NewSingleHostReverseProxy(sURL)
+		n.AddService(&Service{
+			Path:           v.GetPath(),
+			Host:           v.GetHost(),
+			HealthCheckURL: v.GetHealthCheckURL(),
+			reverseProxy:   proxy,
+			mux:            &sync.RWMutex{},
+		})
 	}
 	return err
 }
@@ -264,6 +275,7 @@ func (n *Novis) discovery(res http.ResponseWriter, req *http.Request) error {
 		Respond(res, http.StatusBadRequest, []byte("Health check url is not valid"), nil)
 		return errors.New("Discovery request health check url is not valid")
 	}
+	s.mux = &sync.RWMutex{}
 	s.SetStatus(CHECKING)
 	sURL, err := url.Parse(s.GetHost())
 	if err != nil {
@@ -330,62 +342,94 @@ func (n *Novis) GetAllServices() (ss map[string]*Service) {
 
 // SetStatus - Set service status
 func (s *Service) SetStatus(status ServiceStatus) {
-	s.mux.Lock()
-	s.Status = status
-	s.mux.Unlock()
+	if s.mux != nil {
+		s.mux.Lock()
+		s.Status = status
+		s.mux.Unlock()
+	} else {
+		s.Status = status
+	}
 }
 
 // GetStatus - Get service status
 func (s *Service) GetStatus() (alive ServiceStatus) {
-	s.mux.RLock()
-	alive = s.Status
-	s.mux.RUnlock()
+	if s.mux != nil {
+		s.mux.RLock()
+		alive = s.Status
+		s.mux.RUnlock()
+	} else {
+		alive = s.Status
+	}
 	return alive
 }
 
 // GetHost - Get Service URL
 func (s *Service) GetHost() (u string) {
-	s.mux.RLock()
-	u = s.Host
-	s.mux.RUnlock()
+	if s.mux != nil {
+		s.mux.RLock()
+		u = s.Host
+		s.mux.RUnlock()
+	} else {
+		u = s.Host
+	}
 	return u
 }
 
 // GetPath - Get path
 func (s *Service) GetPath() (p string) {
-	s.mux.RLock()
-	p = s.Path
-	s.mux.RUnlock()
+	if s.mux != nil {
+		s.mux.RLock()
+		p = s.Path
+		s.mux.RUnlock()
+	} else {
+		p = s.Path
+	}
 	return p
 }
 
 // SetReverseProxy - Set reverse proxy
 func (s *Service) SetReverseProxy(rp *httputil.ReverseProxy) {
-	s.mux.Lock()
-	s.reverseProxy = rp
-	s.mux.Unlock()
+	if s.mux != nil {
+		s.mux.Lock()
+		s.reverseProxy = rp
+		s.mux.Unlock()
+	} else {
+		s.reverseProxy = rp
+	}
 }
 
 // GetReverseProxy - Get Reverse proxy
 func (s *Service) GetReverseProxy() (rp *httputil.ReverseProxy) {
-	s.mux.RLock()
-	rp = s.reverseProxy
-	s.mux.RUnlock()
+	if s.mux != nil {
+		s.mux.RLock()
+		rp = s.reverseProxy
+		s.mux.RUnlock()
+	} else {
+		rp = s.reverseProxy
+	}
 	return rp
 }
 
 // SetHealthCheckURL - Set health check url
 func (s *Service) SetHealthCheckURL(u string) {
-	s.mux.Lock()
-	s.HealthCheckURL = u
-	s.mux.Unlock()
+	if s.mux != nil {
+		s.mux.Lock()
+		s.HealthCheckURL = u
+		s.mux.Unlock()
+	} else {
+		s.HealthCheckURL = u
+	}
 }
 
 // GetHealthCheckURL - Get Health check URL
 func (s *Service) GetHealthCheckURL() (hcu string) {
-	s.mux.RLock()
-	hcu = s.HealthCheckURL
-	s.mux.RUnlock()
+	if s.mux != nil {
+		s.mux.RLock()
+		hcu = s.HealthCheckURL
+		s.mux.RUnlock()
+	} else {
+		hcu = s.HealthCheckURL
+	}
 	return hcu
 }
 
