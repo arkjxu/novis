@@ -176,7 +176,7 @@ func (n *Novis) healthCheck() {
 					status := isServiceAlive(sHost)
 					if currentStatus != status {
 						s.SetStatus(status)
-						err := n.updateStorage()
+						err := n.UpdateStorage()
 						if err != nil {
 							log.Warn(err.Error())
 						}
@@ -204,7 +204,7 @@ func (n *Novis) AddService(service *Service) (err error) {
 	if len(p) > 0 {
 		n.mux.Lock()
 		n.services[strings.ToLower(p)] = service
-		err = n.updateStorage()
+		err = n.UpdateStorage()
 		n.mux.Unlock()
 		return nil
 	}
@@ -236,7 +236,7 @@ func (n *Novis) RemoveService(service *Service) (err error) {
 		_, found := n.services[lp]
 		if found {
 			delete(n.services, lp)
-			err = n.updateStorage()
+			err = n.UpdateStorage()
 		}
 		n.mux.Unlock()
 		return err
