@@ -319,27 +319,11 @@ func (n *Novis) proxyRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 // GetAllServices - Get all available services
-func (n *Novis) GetAllServices(res http.ResponseWriter, req *http.Request) error {
-	if strings.ToLower(req.Method) != "get" {
-		Respond(res, http.StatusMethodNotAllowed, nil, nil)
-		return errors.New("Get All Service request method not allowed")
-	}
-	services := []Service{}
+func (n *Novis) GetAllServices() (ss map[string]*Service) {
 	n.mux.RLock()
-	for _, s := range n.services {
-		services = append(services, Service{
-			Host:           s.GetHost(),
-			Path:           s.GetPath(),
-			HealthCheckURL: s.GetHealthCheckURL(),
-			Status:         s.GetStatus()})
-	}
+	ss = n.services
 	n.mux.RUnlock()
-	sJSON, err := json.Marshal(services)
-	if err != nil {
-		return err
-	}
-	Respond(res, http.StatusOK, sJSON, http.Header{"Content-Type": []string{"application/json"}})
-	return nil
+	return ss
 }
 
 // SetStatus - Set service status
