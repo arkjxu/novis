@@ -135,6 +135,9 @@ func (n *Novis) LoadFromStorage() (err error) {
 	defer cnl()
 	res, err := n.storage.Get(ctx, svcKey).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return nil
+		}
 		return err
 	}
 	var services []Service
