@@ -122,7 +122,8 @@ func NewFromConfig(fileName string, storageOpts *redis.Options) (nn *Novis, err 
 		opts: &ProxyOptions{
 			Timeout:      yc.Server.Timeout * time.Second,
 			DiscoveryURL: yc.Server.Discovery.Path,
-			StorageOpts:  storageOpts}}
+			StorageOpts:  storageOpts},
+		storage: redis.NewClient(storageOpts)}
 	nn.server.Handler = http.HandlerFunc(nn.proxyRequest)
 	err = nn.LoadFromStorage()
 	return nn, err
